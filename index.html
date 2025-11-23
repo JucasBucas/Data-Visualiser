@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Visualizer</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #2c3e50;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            min-height: calc(100vh - 40px);
+            gap: 20px;
+        }
+
+        .left-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 400px;
+        }
+
+        .right-panel {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-left: 4px solid #3498db;
+        }
+
+        .title {
+            color: #3498db;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title {
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .btn-header {
+            background: #2c3e50;
+            font-weight: bold;
+            padding: 14px 20px;
+            font-size: 16px;
+        }
+
+        .btn-action {
+            background: #e74c3c;
+        }
+
+        .btn-action:hover {
+            background: #c0392b;
+        }
+
+        .file-input-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .file-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed #bdc3c7;
+            border-radius: 8px;
+            background: #f8f9fa;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-input:hover {
+            border-color: #3498db;
+            background: #e8f4fd;
+        }
+
+        .preview-area {
+            height: 220px;
+            border: 1px solid #e1e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            overflow-y: auto;
+            background: white;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #2c3e50;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .control-label {
+            min-width: 100px;
+            font-weight: 600;
+            color: #34495e;
+        }
+
+        select, input {
+            padding: 10px;
+            border: 1px solid #dce4ec;
+            border-radius: 6px;
+            flex: 1;
+            font-size: 14px;
+            background: white;
+            transition: border 0.3s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        .chart-container {
+            flex: 1;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            border-left: 4px solid #2ecc71;
+        }
+
+        #chart {
+            flex: 1;
+            min-height: 500px;
+            border: 1px solid #ecf0f1;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+            flex-wrap: wrap;
+        }
+
+        .status-bar {
+            background: #e1e8f0;
+            color: #2c3e50;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-icon {
+            font-size: 16px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .options-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border-left: 3px solid #f39c12;
+        }
+
+        .file-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f4fd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1000;
+            background: white;
+            padding: 20px;
+        }
+
+        .fullscreen #chart {
+            height: calc(100vh - 120px);
+        }
+
+        .fullscreen .toolbar {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        .format-info {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        .data-summary {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .summary-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .summary-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .summary-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left-panel">
+            <div class="panel">
+                <div class="title">📊 Advanced Data Visualizer</div>
+                
+                <div class="section-title">Data Input</div>
+                <div class="file-input-container">
+                    <input type="file" id="fileInput" class="file-input" 
+                           accept=".csv,.xlsx,.xls,.json,.txt">
+                    <div class="format-info">Supported formats: CSV, Excel (XLSX, XLS), JSON, TXT</div>
+                </div>
+                <button class="btn btn-header" onclick="loadFile()">
+                    <span>📁</span> Load Data File
+                </button>
+                
+                <div id="fileInfo" class="file-info hidden">
+                    <div><strong>File:</strong> <span id="fileName">-</span></div>
+                    <div class="data-summary">
+                        <div class="summary-item">
+                            <div class="summary-value" id="rowCount">0</div>
+                            <div class="summary-label">ROWS</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-value" id="colCount">0</div>
+                            <div class="summary-label">COLUMNS</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section-title" style="margin-top: 20px;">Data Preview</div>
+                <div id="previewArea" class="preview-area">No data loaded. Please select a file and click "Load Data File".</div>
+            </div>
+
+            <div class="panel">
+                <div class="section-title">Visualization Settings</div>
+                
+                <div class="control-group">
+                    <label class="control-label">Chart Type:</label>
+                    <select id="chartType" onchange="onChartTypeChange()">
+                        <option value="Bar">Bar Chart</option>
+                        <option value="Line">Line Chart</option>
+                        <option value="Pie">Pie Chart</option>
+                        <option value="Scatter">Scatter Plot</option>
+                        <option value="Histogram">Histogram</option>
+                        <option value="Boxplot">Box Plot</option>
+                        <option value="Heatmap">Heatmap</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">X Column:</label>
+                    <select id="xColumn"></select>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Y Column:</label>
+                    <select id="yColumn"></select>
+                </div>
+
+                <div id="optionsFrame" class="options-group hidden"></div>
+
+                <div class="toolbar">
+                    <button class="btn" onclick="plotChart()">
+                        <span>📈</span> Generate Chart
+                    </button>
+                    <button class="btn" onclick="saveChart()">
+                        <span>💾</span> Save Chart
+                    </button>
+                    <button class="btn btn-action" onclick="clearChart()">
+                        <span>🗑️</span> Clear Chart
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="chart-container">
+                <div class="section-title">Chart Display</div>
+                <div id="chart">No chart generated yet. Load data and click "Generate Chart".</div>
+                
+                <div class="toolbar">
+                    <button class="btn" onclick="zoomIn()">
+                        <span>🔍</span> Zoom In
+                    </button>
+                    <button class="btn" onclick="zoomOut()">
+                        <span>🔍</span> Zoom Out
+                    </button>
+                    <button class="btn" onclick="resetView()">
+                        <span>🔄</span> Reset View
+                    </button>
+                    <button class="btn" onclick="toggleFullscreen()">
+                        <span>⛶</span> Fullscreen
+                    </button>
+                </div>
+            </div>
+            
+            <div class="status-bar">
+                <span class="status-icon">ℹ️</span>
+                <span id="statusText">Ready to load data</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = null;
+        let currentChart = null;
+        let isFullscreen = false;
+        let currentFileName = '';
+
+        function loadFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) {
+                alert('Please select a file first');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            currentFileName = file.name;
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    let data;
+
+                    if (file.name.endsWith('.csv')) {
+                        const results = Papa.parse(content, { 
+                            header: true, 
+                            dynamicTyping: true,
+                            skipEmptyLines: true
+                        });
+                        data = results.data.filter(row => Object.keys(row).length > 0);
+                        setStatus(`Loaded CSV file: ${file.name}`);
+                    } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                        const workbook = XLSX.read(content, { type: 'binary' });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        data = XLSX.utils.sheet_to_json(worksheet);
+                        setStatus(`Loaded Excel file: ${file.name} (Sheet: ${firstSheetName})`);
+                    } else if (file.name.endsWith('.json')) {
+                        data = JSON.parse(content);
+                        if (!Array.isArray(data)) {
+                            data = [data];
+                        }
+                        setStatus(`Loaded JSON file: ${file.name}`);
+                    } else if (file.name.endsWith('.txt')) {
+                        const results = Papa.parse(content, { 
+                            header: true, 
+                            dynamicTyping: true,
+                            delimiter: "\t",
+                            skipEmptyLines: true
+                        });
+                        data = results.data.filter(row => Object.keys(row).length > 0);
+                        setStatus(`Loaded text file: ${file.name}`);
+                    } else {
+                        alert('File format not supported');
+                        setStatus('Error: Unsupported file format');
+                        return;
+                    }
+
+                    if (data.length === 0) {
+                        alert('No data found in file');
+                        setStatus('Error: No data found in file');
+                        return;
+                    }
+
+                    currentData = data;
+                    updateColumnSelects();
+                    updatePreview();
+                    updateFileInfo();
+
+                } catch (error) {
+                    alert('Error loading file: ' + error.message);
+                    setStatus('Error loading file');
+                    console.error(error);
+                }
+            };
+
+            if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                reader.readAsBinaryString(file);
+            } else {
+                reader.readAsText(file);
+            }
+        }
+
+        function updateColumnSelects() {
+            if (!currentData || currentData.length === 0) return;
+
+            const columns = Object.keys(currentData[0]);
+            const xSelect = document.getElementById('xColumn');
+            const ySelect = document.getElementById('yColumn');
+
+            xSelect.innerHTML = '';
+            ySelect.innerHTML = '';
+
+            columns.forEach(col => {
+                const option1 = document.createElement('option');
+                option1.value = col;
+                option1.textContent = col;
+                xSelect.appendChild(option1);
+
+                const option2 = document.createElement('option');
+                option2.value = col;
+                option2.textContent = col;
+                ySelect.appendChild(option2);
+            });
+
+            if (columns.length > 0) {
+                xSelect.value = columns[0];
+                if (columns.length > 1) {
+                    ySelect.value = columns[1];
+                }
+            }
+        }
+
+        function updatePreview() {
+            const previewArea = document.getElementById('previewArea');
+            if (!currentData) {
+                previewArea.textContent = 'No data loaded';
+                return;
+            }
+
+            let preview = `Data Preview (${currentData.length} rows, ${Object.keys(currentData[0]).length} columns)\n\n`;
+            preview += `Columns: ${Object.keys(currentData[0]).join(', ')}\n\n`;
+            preview += 'First 5 rows:\n\n';
+
+            const headers = Object.keys(currentData[0]);
+            preview += headers.join('\t') + '\n';
+            preview += '-'.repeat(headers.join('\t').length) + '\n';
+            
+            for (let i = 0; i < Math.min(5, currentData.length); i++) {
+                const row = currentData[i];
+                preview += headers.map(h => row[h] !== undefined ? row[h] : '').join('\t') + '\n';
+            }
+
+            previewArea.textContent = preview;
+        }
+
+        function updateFileInfo() {
+            const fileInfo = document.getElementById('fileInfo');
+            const fileName = document.getElementById('fileName');
+            const rowCount = document.getElementById('rowCount');
+            const colCount = document.getElementById('colCount');
+            
+            if (currentData && currentData.length > 0) {
+                fileInfo.classList.remove('hidden');
+                fileName.textContent = currentFileName;
+                rowCount.textContent = currentData.length;
+                colCount.textContent = Object.keys(currentData[0]).length;
+            } else {
+                fileInfo.classList.add('hidden');
+            }
+        }
+
+        function onChartTypeChange() {
+            const chartType = document.getElementById('chartType').value;
+            const optionsFrame = document.getElementById('optionsFrame');
+            optionsFrame.innerHTML = '';
+
+            if (chartType === 'Histogram') {
+                optionsFrame.classList.remove('hidden');
+                optionsFrame.innerHTML = `
+                    <div class="control-group">
+                        <label class="control-label">Number of bins:</label>
+                        <input type="number" id="binsInput" value="10" min="1" max="100">
+                    </div>
+                `;
+            } else if (chartType === 'Heatmap') {
+                optionsFrame.classList.remove('hidden');
+                optionsFrame.innerHTML = `
+                    <div class="control-group">
+                        <label class="control-label">Show Correlation Matrix</label>
+                        <input type="checkbox" id="corrCheckbox" checked>
+                    </div>
+                `;
+            } else {
+                optionsFrame.classList.add('hidden');
+            }
+        }
+
+        function plotChart() {
+            if (!currentData) {
+                alert('Please load data first');
+                return;
+            }
+
+            const chartType = document.getElementById('chartType').value;
+            const xCol = document.getElementById('xColumn').value;
+            const yCol = document.getElementById('yColumn').value;
+
+            if (!xCol) {
+                alert('Please select at least one column');
+                return;
+            }
+
+            try {
+                let trace;
+                const layout = {
+                    title: `${chartType} Chart of ${xCol}`,
+                    font: { family: 'Segoe UI', size: 14, color: '#2c3e50' },
+                    plot_bgcolor: '#f8f9fa',
+                    paper_bgcolor: '#ffffff',
+                    margin: { t: 60, r: 40, b: 80, l: 60 }
+                };
+
+                const xData = currentData.map(row => row[xCol]).filter(val => val !== null && val !== undefined);
+                const yData = yCol ? currentData.map(row => row[yCol]).filter(val => val !== null && val !== undefined) : null;
+
+                switch (chartType) {
+                    case 'Bar':
+                        if (yCol) {
+                            const grouped = {};
+                            currentData.forEach(row => {
+                                if (row[xCol] !== undefined && row[xCol] !== null && 
+                                    row[yCol] !== undefined && row[yCol] !== null) {
+                                    if (!grouped[row[xCol]]) grouped[row[xCol]] = [];
+                                    grouped[row[xCol]].push(row[yCol]);
+                                }
+                            });
+                            
+                            const xValues = Object.keys(grouped);
+                            const yValues = xValues.map(key => {
+                                const vals = grouped[key];
+                                return vals.reduce((a, b) => a + b, 0) / vals.length;
+                            });
+
+                            trace = {
+                                x: xValues,
+                                y: yValues,
+                                type: 'bar',
+                                marker: { color: '#3498db' }
+                            };
+                        } else {
+                            const counts = {};
+                            xData.forEach(val => {
+                                if (val !== undefined && val !== null) {
+                                    counts[val] = (counts[val] || 0) + 1;
+                                }
+                            });
+                            
+                            trace = {
+                                x: Object.keys(counts),
+                                y: Object.values(counts),
+                                type: 'bar',
+                                marker: { color: '#3498db' }
+                            };
+                        }
+                        break;
+
+                    case 'Line':
+                        trace = {
+                            x: xData,
+                            y: yData || xData,
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            line: { color: '#e74c3c', width: 2 },
+                            marker: { size: 4 }
+                        };
+                        break;
+
+                    case 'Pie':
+                        const counts = {};
+                        xData.forEach(val => {
+                            if (val !== undefined && val !== null) {
+                                counts[val] = (counts[val] || 0) + 1;
+                            }
+                        });
+                        
+                        trace = {
+                            labels: Object.keys(counts),
+                            values: Object.values(counts),
+                            type: 'pie',
+                            marker: { colors: ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#34495e'] }
+                        };
+                        break;
+
+                    case 'Scatter':
+                        if (!yCol) {
+                            alert('Scatter plot requires two columns');
+                            return;
+                        }
+                        trace = {
+                            x: xData,
+                            y: yData,
+                            type: 'scatter',
+                            mode: 'markers',
+                            marker: { 
+                                color: '#9b59b6',
+                                size: 8,
+                                opacity: 0.7
+                            }
+                        };
+                        break;
+
+                    case 'Histogram':
+                        const bins = document.getElementById('binsInput') ? 
+                                   parseInt(document.getElementById('binsInput').value) : 10;
+                        trace = {
+                            x: xData,
+                            type: 'histogram',
+                            nbinsx: bins,
+                            marker: { color: '#2ecc71' }
+                        };
+                        break;
+
+                    case 'Boxplot':
+                        trace = {
+                            y: xData,
+                            type: 'box',
+                            marker: { color: '#f39c12' },
+                            boxpoints: 'all',
+                            jitter: 0.3,
+                            pointpos: -1.8
+                        };
+                        break;
+
+                    case 'Heatmap':
+                        const numericCols = getNumericColumns();
+                        if (numericCols.length === 0) {
+                            alert('No numeric columns for correlation heatmap');
+                            return;
+                        }
+                        
+                        const corrMatrix = calculateCorrelationMatrix(numericCols);
+                        trace = {
+                            z: corrMatrix.matrix,
+                            x: corrMatrix.columns,
+                            y: corrMatrix.columns,
+                            type: 'heatmap',
+                            colorscale: 'RdBu',
+                            zmin: -1,
+                            zmax: 1
+                        };
+                        break;
+                }
+
+                if (trace) {
+                    const chartElement = document.getElementById('chart');
+                    Plotly.newPlot(chartElement, [trace], layout, { 
+                        responsive: true,
+                        displayModeBar: true,
+                        displaylogo: false
+                    });
+                    currentChart = { data: [trace], layout: layout };
+                    setStatus(`Generated ${chartType} chart successfully`);
+                }
+            } catch (error) {
+                alert('Error creating chart: ' + error.message);
+                setStatus('Chart generation failed');
+                console.error(error);
+            }
+        }
+
+        function getNumericColumns() {
+            if (!currentData || currentData.length === 0) return [];
+            
+            return Object.keys(currentData[0]).filter(col => {
+                return currentData.some(row => 
+                    row[col] !== null && 
+                    row[col] !== undefined && 
+                    typeof row[col] === 'number'
+                );
+            });
+        }
+
+        function calculateCorrelationMatrix(columns) {
+            const matrix = [];
+            const n = columns.length;
+            
+            for (let i = 0; i < n; i++) {
+                matrix[i] = [];
+                for (let j = 0; j < n; j++) {
+                    if (i === j) {
+                        matrix[i][j] = 1;
+                    } else {
+                        const x = currentData
+                            .map(row => row[columns[i]])
+                            .filter(val => val !== null && val !== undefined);
+                        const y = currentData
+                            .map(row => row[columns[j]])
+                            .filter(val => val !== null && val !== undefined);
+                        
+                        // Align the arrays by index
+                        const alignedX = [];
+                        const alignedY = [];
+                        for (let k = 0; k < Math.min(x.length, y.length); k++) {
+                            if (x[k] !== null && x[k] !== undefined && 
+                                y[k] !== null && y[k] !== undefined) {
+                                alignedX.push(x[k]);
+                                alignedY.push(y[k]);
+                            }
+                        }
+                        
+                        matrix[i][j] = alignedX.length > 0 ? pearsonCorrelation(alignedX, alignedY) : 0;
+                    }
+                }
+            }
+            
+            return { matrix: matrix, columns: columns };
+        }
+
+        function pearsonCorrelation(x, y) {
+            const n = x.length;
+            if (n === 0) return 0;
+            
+            const sum_x = x.reduce((a, b) => a + b, 0);
+            const sum_y = y.reduce((a, b) => a + b, 0);
+            const sum_xy = x.reduce((a, b, i) => a + b * y[i], 0);
+            const sum_x2 = x.reduce((a, b) => a + b * b, 0);
+            const sum_y2 = y.reduce((a, b) => a + b * b, 0);
+            
+            const numerator = n * sum_xy - sum_x * sum_y;
+            const denominator = Math.sqrt((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y));
+            
+            return denominator === 0 ? 0 : numerator / denominator;
+        }
+
+        function saveChart() {
+            if (!currentChart) {
+                alert('Please generate a chart first');
+                return;
+            }
+
+            const chartElement = document.getElementById('chart');
+            Plotly.downloadImage(chartElement, {
+                format: 'png',
+                width: 1200,
+                height: 800,
+                filename: 'data_visualization_chart'
+            });
+            
+            setStatus('Chart saved as PNG image');
+        }
+
+        function clearChart() {
+            const chartElement = document.getElementById('chart');
+            Plotly.purge(chartElement);
+            chartElement.innerHTML = 'No chart generated yet. Load data and click "Generate Chart".';
+            currentChart = null;
+            setStatus('Chart cleared');
+        }
+
+        function zoomIn() {
+            if (currentChart) {
+                setStatus('Use the controls on the chart to zoom in');
+            }
+        }
+
+        function zoomOut() {
+            if (currentChart) {
+                const chartElement = document.getElementById('chart');
+                Plotly.relayout(chartElement, {
+                    'xaxis.autorange': true,
+                    'yaxis.autorange': true
+                });
+                setStatus('Zoomed out to full view');
+            }
+        }
+
+        function resetView() {
+            if (currentChart) {
+                const chartElement = document.getElementById('chart');
+                Plotly.relayout(chartElement, currentChart.layout);
+                setStatus('View reset to original');
+            }
+        }
+
+        function toggleFullscreen() {
+            const chartContainer = document.querySelector('.chart-container');
+            
+            if (!isFullscreen) {
+                chartContainer.classList.add('fullscreen');
+                isFullscreen = true;
+                setStatus('Fullscreen mode - press ESC to exit');
+            } else {
+                chartContainer.classList.remove('fullscreen');
+                isFullscreen = false;
+                setStatus('Exited fullscreen mode');
+            }
+        }
+
+        function setStatus(message) {
+            document.getElementById('statusText').textContent = message;
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && isFullscreen) {
+                toggleFullscreen();
+            }
+        });
+
+        // Initialize the interface
+        document.getElementById('fileInput').addEventListener('change', function() {
+            if (this.files.length > 0) {
+                setStatus(`File selected: ${this.files[0].name}. Click "Load Data File" to process.`);
+            }
+        });
+    </script>
+</body>
+</html>
